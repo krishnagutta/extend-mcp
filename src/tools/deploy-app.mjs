@@ -1,26 +1,27 @@
 import { z } from 'zod';
 import { wdcliRaw } from '../wdcli.mjs';
-
-const SAFE_TENANTS = new Set(['acme-sb', 'acme_preview', 'acme_wcpdev1', 'acme1', 'acme2', 'acme3', 'acme6']);
-const PROD_TENANT = 'acme';
+import { config } from '../config.mjs';
+import { evaluateDeploy } from '../tenant-guard.mjs';
 
 export function register(server) {
   server.tool(
     'deploy_extend_app',
-    'Deploy a specific version of an Extend app to a Workday tenant. CAUTION: deploying to "acme" deploys to PRODUCTION. Use "acme-sb" or "acme1" for testing. Use list_extend_tenants to see all available tenants.',
+    'Deploy a specific version of an Extend app to a Workday tenant. CAUTION: deploying to your production tenant deploys to PRODUCTION — that is blocked by default. Use a sandbox (e.g. "<tenant>-sb") or impl tenant for testing. Use list_extend_tenants to see all available tenants.',
     {
-      reference_id: z.string().describe('App referenceId (e.g. spotBonus_gvptzl)'),
-      tenant_alias: z.string().describe('Tenant to deploy to (e.g. "acme-sb" for sandbox, "acme1" for impl, "acme" for PROD). Use list_extend_tenants to see all.'),
+      reference_id: z.string().describe('App referenceId (e.g. myApp_gvptzl)'),
+      tenant_alias: z.string().describe('Tenant to deploy to (e.g. "<tenant>-sb" for sandbox, "<tenant>1" for impl). Deploys to the configured production tenant are refused. Use list_extend_tenants to see all.'),
       version: z.string().optional().describe('Version number to deploy (e.g. "428"). Omit for latest.'),
     },
     async ({ reference_id, tenant_alias, version }) => {
-      const isProd = tenant_alias === PROD_TENANT;
-      const isSafe = SAFE_TENANTS.has(tenant_alias);
+      const decision = evaluateDeploy(tenant_alias, {
+        prodTenant: config.prodTenant,
+        safeTenants: config.safeTenants,
+      });
 
-      if (isProd) {
+      if (decision.blocked) {
         return ok({
           blocked: true,
-          reason: 'Direct production deployment via MCP is disabled for safety. Deploy to sandbox (acme-sb) or impl (acme1) first, then promote through the Workday Developer Site.',
+          reason: decision.reason,
           tenant: tenant_alias,
         });
       }
@@ -35,6 +36,7 @@ export function register(server) {
         success: result.ok,
         referenceId: reference_id,
         tenant: tenant_alias,
+        safe: decision.safe,
         version: version ?? 'latest',
         output: result.data ?? result.error,
       });

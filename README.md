@@ -1,6 +1,6 @@
 # extend-mcp
 
-MCP server for Workday Extend app development at Acme. Gives Claude Desktop full read/write access to your Extend apps via the [Workday Developer CLI (WDCLI)](https://developer.workday.com/tools/cli).
+MCP server for Workday Extend app development. Gives Claude Desktop full read/write access to your Extend apps via the [Workday Developer CLI (WDCLI)](https://developer.workday.com/tools/cli).
 
 ## What it does
 
@@ -17,21 +17,22 @@ MCP server for Workday Extend app development at Acme. Gives Claude Desktop full
 | `write_extend_app_file` | "Update the Open Positions section" |
 | `validate_extend_app` | "Validate before I upload" |
 | `upload_extend_app` | "Upload my changes and wait for build" |
-| `deploy_extend_app` | "Deploy v428 to sandbox (acme-sb)" |
+| `deploy_extend_app` | "Deploy v428 to sandbox (<tenant>-sb)" |
 
 ## Prerequisites
 
 - [Claude Desktop](https://claude.ai/download)
 - [Node.js 18+](https://nodejs.org)
 - [WDCLI 1.0+](https://developer.workday.com/tools/cli) — install the macOS/Linux binary
-- A Workday Developer Platform **system user** with CLI access for Acme
+- A Workday Developer Platform **system user** with CLI access for your organization
 
 ## Quick install
 
 ```bash
 WDCLI_CLIENT_ID=your_id \
 WDCLI_CLIENT_SECRET=your_secret \
-  curl -fsSL https://raw.githubusercontent.com/acme/extend-mcp/main/install.sh | bash
+EXTEND_PROD_TENANT=your_prod_tenant_alias \
+  curl -fsSL https://raw.githubusercontent.com/krishnagutta/extend-mcp/main/install.sh | bash
 ```
 
 Restart Claude Desktop after install. That's it.
@@ -40,8 +41,8 @@ Restart Claude Desktop after install. That's it.
 
 You need a Workday Developer Platform system user:
 
-1. Go to [developer.workday.com](https://developer.workday.com) → sign in with your Acme SSO
-2. Navigate to your org (**Acme, Inc.**) → **System Users**
+1. Go to [developer.workday.com](https://developer.workday.com) → sign in with your organization's SSO
+2. Navigate to your org → **System Users**
 3. Create a new system user or use an existing one
 4. Copy the **Client ID** and **Client Secret**
 5. Pass them as `WDCLI_CLIENT_ID` / `WDCLI_CLIENT_SECRET` in the install command above
@@ -51,7 +52,7 @@ You need a Workday Developer Platform system user:
 ## Manual install
 
 ```bash
-git clone https://github.com/acme/extend-mcp.git ~/Documents/extend-mcp
+git clone https://github.com/krishnagutta/extend-mcp.git ~/Documents/extend-mcp
 cd ~/Documents/extend-mcp
 npm install
 ```
@@ -67,6 +68,8 @@ Then add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
       "env": {
         "WDCLI_CLIENT_ID": "your_client_id",
         "WDCLI_CLIENT_SECRET": "your_client_secret",
+        "EXTEND_PROD_TENANT": "your_prod_tenant_alias",
+        "EXTEND_SAFE_TENANTS": "your_sandbox_alias,your_impl_alias",
         "EXTEND_WORK_DIR": "/Users/YOUR_USERNAME/extend-workspace"
       }
     }
@@ -120,6 +123,6 @@ All tools return JSON. Errors always include `{ error: true, code, message, sugg
 
 ## Safety notes
 
-- **Production deploys are blocked** — `deploy_extend_app` refuses to deploy to `acme` (prod). Promote through the Workday Developer Site after validating in sandbox.
+- **Production deploys are blocked** — `deploy_extend_app` refuses to deploy to the configured production tenant (`EXTEND_PROD_TENANT`), and the server refuses to start if that variable is unset — the guard fails closed. Promote through the Workday Developer Site after validating in sandbox.
 - **Backups on write** — `write_extend_app_file` creates a `.bak` before overwriting.
 - **Credentials stay local** — never commit `.env` or put credentials in `config.json`.

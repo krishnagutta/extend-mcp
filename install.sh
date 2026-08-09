@@ -4,11 +4,11 @@ set -euo pipefail
 # ─────────────────────────────────────────────
 # Extend MCP — one-line installer
 # Usage:
-#   WDCLI_CLIENT_ID=xxx WDCLI_CLIENT_SECRET=yyy \
-#     curl -fsSL https://raw.githubusercontent.com/acme/extend-mcp/main/install.sh | bash
+#   WDCLI_CLIENT_ID=xxx WDCLI_CLIENT_SECRET=yyy EXTEND_PROD_TENANT=zzz \
+#     curl -fsSL https://raw.githubusercontent.com/krishnagutta/extend-mcp/main/install.sh | bash
 # ─────────────────────────────────────────────
 
-REPO="https://github.com/acme/extend-mcp.git"
+REPO="https://github.com/krishnagutta/extend-mcp.git"
 INSTALL_DIR="$HOME/Documents/extend-mcp"
 CONFIG_FILE="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
 WORK_DIR="$HOME/extend-workspace"
@@ -41,6 +41,21 @@ if [[ -z "$CLIENT_ID" || -z "$CLIENT_SECRET" ]]; then
 fi
 
 [[ -n "$CLIENT_ID" && -n "$CLIENT_SECRET" ]] || error "Credentials are required."
+
+# ── 2b. Collect tenant config ───────────────
+# EXTEND_PROD_TENANT is required: the server refuses to start without it so the
+# production-deploy guard can never be silently disarmed.
+PROD_TENANT="${EXTEND_PROD_TENANT:-}"
+SAFE_TENANTS="${EXTEND_SAFE_TENANTS:-}"
+
+if [[ -z "$PROD_TENANT" ]]; then
+  warn "EXTEND_PROD_TENANT not set. Enter it now."
+  echo  "(Your production tenant alias — deploys to it are refused by the safety guard)"
+  echo
+  read -rp "  EXTEND_PROD_TENANT:  " PROD_TENANT
+fi
+
+[[ -n "$PROD_TENANT" ]] || error "EXTEND_PROD_TENANT is required — the server will not start without it."
 
 # ── 3. Test credentials ─────────────────────
 info "Testing credentials with Workday Developer Platform..."
@@ -80,6 +95,8 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
       "env": {
         "WDCLI_CLIENT_ID": "$CLIENT_ID",
         "WDCLI_CLIENT_SECRET": "$CLIENT_SECRET",
+        "EXTEND_PROD_TENANT": "$PROD_TENANT",
+        "EXTEND_SAFE_TENANTS": "$SAFE_TENANTS",
         "EXTEND_WORK_DIR": "$WORK_DIR"
       }
     }
@@ -89,14 +106,11 @@ JSON
   exit 0
 fi
 
-# Use node to safely merge JSON (avoids Python/jq dependency)
-node - "$CONFIG_FILE" "$INSTALL_DIR" "$CLIENT_ID" "$CLIENT_SECRET" "$WORK_DIR" <<'NODE'
-const fs   = require('fs');
-const file = process.argv[1];
-const dir  = process.argv[2];
-const id   = process.argv[3];
-const sec  = process.argv[4];
-const work = process.argv[5];
+# Use node to safely merge JSON (avoids Python/jq dependency).
+# NB: with `node -` (script on stdin), argv[1] is "-", so real args start at argv[2].
+node - "$CONFIG_FILE" "$INSTALL_DIR" "$CLIENT_ID" "$CLIENT_SECRET" "$WORK_DIR" "$PROD_TENANT" "$SAFE_TENANTS" <<'NODE'
+const fs = require('fs');
+const [file, dir, id, sec, work, prod, safe] = process.argv.slice(2);
 
 let cfg = {};
 try { cfg = JSON.parse(fs.readFileSync(file, 'utf8')); } catch {}
@@ -106,9 +120,11 @@ cfg.mcpServers['extend-mcp'] = {
   command: 'node',
   args: [dir + '/src/index.mjs'],
   env: {
-    WDCLI_CLIENT_ID:     id,
-    WDCLI_CLIENT_SECRET: sec,
-    EXTEND_WORK_DIR:     work,
+    WDCLI_CLIENT_ID:      id,
+    WDCLI_CLIENT_SECRET:  sec,
+    EXTEND_PROD_TENANT:   prod,
+    EXTEND_SAFE_TENANTS:  safe,
+    EXTEND_WORK_DIR:      work,
   }
 };
 fs.writeFileSync(file, JSON.stringify(cfg, null, 2) + '\n');

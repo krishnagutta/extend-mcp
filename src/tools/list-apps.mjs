@@ -4,7 +4,7 @@ import { wdcli } from '../wdcli.mjs';
 export function register(server) {
   server.tool(
     'list_extend_apps',
-    'List all Workday Extend apps for the Acme organization. Returns app names, referenceIds, status, and latest version info. Use referenceId for all other app commands.',
+    'List all Workday Extend apps for your organization. Returns app names, referenceIds, status, and latest version info. Use referenceId for all other app commands.',
     {
       limit: z.number().int().min(1).max(500).optional().describe('Max apps to return (default: all)'),
       offset: z.number().int().min(0).optional().describe('Offset for pagination (default: 0)'),
