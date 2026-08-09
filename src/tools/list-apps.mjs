@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { wdcli } from '../wdcli.mjs';
+import { ok, err } from '../respond.mjs';
 
 export function register(server) {
   server.tool(
@@ -37,12 +38,4 @@ function summarize(app) {
     latest_version: latest ? { name: latest.name, status: latest.status, versionId: latest.versionId } : null,
     modified: app.modified,
   };
-}
-
-function ok(data) {
-  return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-}
-
-function err(code, message, suggestion) {
-  return { content: [{ type: 'text', text: JSON.stringify({ error: true, code, message, suggestion }) }] };
 }

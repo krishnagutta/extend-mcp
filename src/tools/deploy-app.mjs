@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { wdcliRaw } from '../wdcli.mjs';
 import { config } from '../config.mjs';
 import { evaluateDeploy } from '../tenant-guard.mjs';
+import { ok } from '../respond.mjs';
 
 export function register(server) {
   server.tool(
@@ -42,8 +43,4 @@ export function register(server) {
       });
     }
   );
-}
-
-function ok(data) {
-  return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
 }

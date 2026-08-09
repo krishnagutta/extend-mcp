@@ -17,7 +17,7 @@ import { register as registerDeployApp } from './tools/deploy-app.mjs';
 
 const server = new McpServer({
   name: 'extend-mcp',
-  version: '1.0.0',
+  version: '1.0.1',
 });
 
 // Discovery
