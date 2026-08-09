@@ -18,6 +18,9 @@ MCP server for Workday Extend app development. Gives Claude Desktop full read/wr
 | `validate_extend_app` | "Validate before I upload" |
 | `upload_extend_app` | "Upload my changes and wait for build" |
 | `deploy_extend_app` | "Deploy v428 to sandbox (<tenant>-sb)" |
+| `get_extend_patterns` | "How does PMD scripting handle object literals?" |
+| `search_extend_examples` | "Find a working fileUploader example" |
+| `read_extend_example` | "Show me the widget dictionary's buttons page" |
 
 ## Prerequisites
 
@@ -120,6 +123,18 @@ src/
 ```
 
 All tools return JSON. Errors always include `{ error: true, code, message, suggestion }`.
+
+## Knowledge tools
+
+`get_extend_patterns` serves a curated Extend reference (app anatomy, PMD
+structure and scripting, widgets, orchestration and Prism patterns) straight
+from `docs/knowledge/extend-patterns.md` — every workspace running this server
+gets it, no repo checkout needed. `search_extend_examples` and
+`read_extend_example` search and read ~30 complete working apps from
+[Workday/WorkdayDeveloperProgram](https://github.com/Workday/WorkdayDeveloperProgram)
+(Apache-2.0, official Workday DevRel), shallow-cloned on first use into
+`EXTEND_WORK_DIR/.knowledge/` (requires git + network; pass `refresh: true`
+to pull updates).
 
 ## Safety notes
 
