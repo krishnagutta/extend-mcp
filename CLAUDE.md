@@ -44,3 +44,15 @@ owner review"; protection reads 404). Fix: `gh auth switch --user krishnagutta`.
   tool must serve it live (docs alone never reach a teammate's workspace).
   Two-tier: append-only intake log, periodically promoted into a curated
   reference — verify each entry against current code BEFORE promoting.
+
+## Knowledge flow (implemented)
+
+- `docs/knowledge/intake.md` — append-only raw observations, dated + sourced.
+- `docs/knowledge/extend-patterns.md` — the curated tier, served live by
+  `get_extend_patterns` (re-read per call; edits reach users without restart).
+  New `## Section` headings become addressable sections automatically; the
+  knowledge tests assert core sections exist and bodies stay non-trivial.
+- `search_extend_examples` / `read_extend_example` — searchable corpus of
+  Workday DevRel sample apps, shallow-cloned at runtime into
+  `EXTEND_WORK_DIR/.knowledge/wdp` (never vendored into this repo). Always
+  attribute: Workday/WorkdayDeveloperProgram, Apache-2.0.

@@ -14,10 +14,13 @@ import { register as registerWriteAppFile } from './tools/write-app-file.mjs';
 import { register as registerValidateApp } from './tools/validate-app.mjs';
 import { register as registerUploadApp } from './tools/upload-app.mjs';
 import { register as registerDeployApp } from './tools/deploy-app.mjs';
+import { register as registerGetPatterns } from './tools/get-extend-patterns.mjs';
+import { register as registerSearchExamples } from './tools/search-extend-examples.mjs';
+import { register as registerReadExample } from './tools/read-extend-example.mjs';
 
 const server = new McpServer({
   name: 'extend-mcp',
-  version: '1.0.1',
+  version: '1.1.0',
 });
 
 // Discovery
@@ -37,6 +40,11 @@ registerWriteAppFile(server);
 registerValidateApp(server);
 registerUploadApp(server);
 registerDeployApp(server);
+
+// Knowledge (curated patterns + Workday DevRel example corpus)
+registerGetPatterns(server);
+registerSearchExamples(server);
+registerReadExample(server);
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
