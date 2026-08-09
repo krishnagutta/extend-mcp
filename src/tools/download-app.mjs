@@ -3,17 +3,32 @@ import { join } from 'path';
 import { existsSync, readdirSync, statSync } from 'fs';
 import { wdcliRaw } from '../wdcli.mjs';
 import { config } from '../config.mjs';
+import { appDirFor } from '../workspace.mjs';
+import { ok, err } from '../respond.mjs';
 
 export function register(server) {
   server.tool(
     'download_extend_app',
-    'Download a Workday Extend app source files to the local workspace. Required before reading or editing app files. Files are stored in EXTEND_WORK_DIR/<referenceId>/.',
+    'Download a Workday Extend app source files to the local workspace. Required before reading or editing app files. Files are stored in EXTEND_WORK_DIR/<referenceId>/. If the app is already downloaded, pass overwrite: true to replace it (local edits are lost).',
     {
-      reference_id: z.string().describe('App referenceId (e.g. spotBonus_gvptzl)'),
+      reference_id: z.string().describe('App referenceId (e.g. myApp_gvptzl)'),
       version: z.string().optional().describe('Version number to download (e.g. "427"). Omit for latest.'),
+      overwrite: z.boolean().default(false).describe('Replace an existing local copy. Defaults to false so uncommitted local edits are not silently destroyed.'),
     },
-    async ({ reference_id, version }) => {
-      const appDir = join(config.workDir, reference_id);
+    async ({ reference_id, version, overwrite }) => {
+      const appDir = appDirFor(config.workDir, reference_id);
+      if (!appDir) {
+        return err('INVALID_REFERENCE_ID', `'${reference_id}' is not a valid referenceId.`, 'Use list_extend_apps to find the exact referenceId.');
+      }
+
+      if (existsSync(appDir) && !overwrite) {
+        return err(
+          'ALREADY_DOWNLOADED',
+          `App '${reference_id}' already exists locally at ${appDir}. Downloading would overwrite any local edits.`,
+          'If you are sure, retry with overwrite: true. Unpushed edits are lost on overwrite (backups of files changed via write_extend_app_file are under EXTEND_WORK_DIR/.backups/).'
+        );
+      }
+
       const args = ['app', 'download', reference_id, '-d', appDir, '--overwrite'];
 
       if (version) {
@@ -51,12 +66,4 @@ function collectFiles(dir, base = dir) {
     }
   }
   return files;
-}
-
-function ok(data) {
-  return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-}
-
-function err(code, message, suggestion) {
-  return { content: [{ type: 'text', text: JSON.stringify({ error: true, code, message, suggestion }) }] };
 }

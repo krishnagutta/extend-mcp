@@ -1,4 +1,5 @@
 import { wdcli } from '../wdcli.mjs';
+import { ok, err } from '../respond.mjs';
 
 export function register(server) {
   server.tool(
@@ -12,12 +13,4 @@ export function register(server) {
       return ok(result.data);
     }
   );
-}
-
-function ok(data) {
-  return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-}
-
-function err(code, message, suggestion) {
-  return { content: [{ type: 'text', text: JSON.stringify({ error: true, code, message, suggestion }) }] };
 }

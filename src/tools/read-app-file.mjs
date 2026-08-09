@@ -1,7 +1,8 @@
 import { z } from 'zod';
-import { join, resolve, normalize } from 'path';
 import { existsSync, readFileSync, statSync } from 'fs';
 import { config } from '../config.mjs';
+import { appDirFor, resolveWithin } from '../workspace.mjs';
+import { ok, err } from '../respond.mjs';
 
 const MAX_SIZE_BYTES = 500 * 1024;
 
@@ -10,18 +11,21 @@ export function register(server) {
     'read_extend_app_file',
     'Read the content of a file from a downloaded Extend app. Supports .pmd, .amd, .smd, .json, .js files. Run download_extend_app first.',
     {
-      reference_id: z.string().describe('App referenceId (e.g. spotBonus_gvptzl)'),
+      reference_id: z.string().describe('App referenceId (e.g. myApp_gvptzl)'),
       file_path: z.string().describe('File path relative to app root (e.g. "presentation/home.pmd" or "appManifest.json")'),
     },
     async ({ reference_id, file_path }) => {
-      const appDir = join(config.workDir, reference_id);
+      const appDir = appDirFor(config.workDir, reference_id);
+      if (!appDir) {
+        return err('INVALID_REFERENCE_ID', `'${reference_id}' is not a valid referenceId.`, 'Use list_extend_apps to find the exact referenceId.');
+      }
 
       if (!existsSync(appDir)) {
         return err('NOT_DOWNLOADED', `App '${reference_id}' is not downloaded.`, 'Run download_extend_app first.');
       }
 
-      const absolute = resolve(join(appDir, normalize(file_path)));
-      if (!absolute.startsWith(appDir)) {
+      const absolute = resolveWithin(appDir, file_path);
+      if (!absolute) {
         return err('PATH_TRAVERSAL', 'File path must be within the app directory.', null);
       }
 
@@ -40,12 +44,4 @@ export function register(server) {
       return ok({ file_path, extension: ext, size_bytes: stat.size, content });
     }
   );
-}
-
-function ok(data) {
-  return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-}
-
-function err(code, message, suggestion) {
-  return { content: [{ type: 'text', text: JSON.stringify({ error: true, code, message, suggestion }) }] };
 }
