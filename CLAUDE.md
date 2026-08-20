@@ -48,11 +48,15 @@ owner review"; protection reads 404). Fix: `gh auth switch --user krishnagutta`.
 - Bump the version when the tool count changes.
 - Before adding any tool that wraps a wdcli command not already used here,
   verify the real command surface first: wdcli is oclif-based and HIDES
-  commands — `oclif.manifest.json` in the wdcli install directory is
-  authoritative, not `wdcli --help`. Planned-but-blocked on live wdcli:
-  whoami, get_build_log, create_app, copy_app (from a LOCAL directory — the
-  copy-by-reference-id path silently uploads nothing), promote_app (must
-  require an explicit human confirmation string).
+  commands — `oclif.manifest.json` in the wdcli install directory
+  (locally: /usr/local/opt/workday/wdcli/) is authoritative, not
+  `wdcli --help`. All 22 tools' argv were verified against it (2026-08-20).
+  Every non-auth invocation passes `--ci` so a subprocess can never hang on
+  an interactive prompt.
+- promote_extend_app requires the human to literally type
+  "PROMOTE <ref> v<version> TO <LEVEL>" — never construct that string for
+  them. copy_extend_app must always pass a LOCAL directory as source (the
+  copy-by-reference-id path silently uploads nothing).
 - Tests: Node stdlib runner (`npm test` → `node --test "test/**/*.test.mjs"`),
   no new deps. Every rule/guard needs BOTH a fires-on-bad and a silent-on-good
   case, verified against an independent oracle (hand-specified expectations,

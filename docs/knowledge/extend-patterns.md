@@ -171,6 +171,12 @@ The build is the oracle, and its failure modes are learnable:
 - After any failure that cost a build: `log_extend_learning` (one file per
   learning, scrubbed of tenant values). Before debugging or writing an
   unfamiliar component: `get_extend_learnings`.
+- Promotion ladder: development → implementation → sandbox → production, one
+  level per `promote_extend_app` call, always with an explicit version and a
+  human-typed confirmation string. Copies must come from a downloaded local
+  directory (`copy_extend_app` enforces this). Apps and copies are permanent.
+- Build logs: `list_extend_app_builds` → `get_extend_build_log <build_id>`;
+  the empty-log parse-error signature is flagged automatically.
 - Backups of edited files land in `EXTEND_WORK_DIR/.backups/`; uploads refuse
   while stray `.bak` files sit inside the app directory.
 - `download_extend_app` refuses to overwrite local edits unless
