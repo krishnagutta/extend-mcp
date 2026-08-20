@@ -24,6 +24,7 @@ export function register(server) {
           blocked: true,
           reason: decision.reason,
           tenant: tenant_alias,
+          allowlist_enforced: decision.allowlist_enforced,
         });
       }
 
@@ -38,8 +39,10 @@ export function register(server) {
         referenceId: reference_id,
         tenant: tenant_alias,
         safe: decision.safe,
+        allowlist_enforced: decision.allowlist_enforced,
         version: version ?? 'latest',
         output: result.data ?? result.error,
+        ...(result.auth ? { auth_failure: result.auth } : {}),
       });
     }
   );

@@ -19,8 +19,18 @@ tool descriptions, and tests. Scan every diff before pushing.
 - Never log, echo, or commit credential values; `.env` stays gitignored.
 - Every deploy/write tool is consequential. Preserve the production guard
   (`src/tenant-guard.mjs` — fail closed; `EXTEND_PROD_TENANT` unset must never
-  make prod deployable) and require explicit user confirmation before any
-  tenant write.
+  make prod deployable; `EXTEND_SAFE_TENANTS` when set is an ENFORCED
+  allowlist) and require explicit user confirmation before any tenant write.
+- NEVER wrap the wdcli commands that print live bearer tokens (config-show /
+  auth-token / tenant-token style) as tools — `test/no-token-commands.test.mjs`
+  scans the source for this and must stay.
+- wdcli has THREE independent credentials (account session; per-tenant token
+  via human browser SSO; ~1h API Explorer token). Classify auth failures and
+  name the exact fix — never "fix" a tenant-token failure by account re-login
+  (`classifyAuthFailure` in `src/wdcli-core.mjs`).
+- Develop against DEVELOPMENT tenants only: sandbox tenants refresh weekly
+  with PRODUCTION data. Apps are permanent (WDCLI has no delete) — name any
+  throwaway app obviously.
 - Never advertise "no network calls / no credentials" — that describes a
   different (Studio) MCP, not this one.
 
@@ -36,6 +46,13 @@ owner review"; protection reads 404). Fix: `gh auth switch --user krishnagutta`.
 - `src/` and `docs/` changes go through a PR (admin-merge after self-review).
   Knowledge/log-only commits may go straight to main.
 - Bump the version when the tool count changes.
+- Before adding any tool that wraps a wdcli command not already used here,
+  verify the real command surface first: wdcli is oclif-based and HIDES
+  commands — `oclif.manifest.json` in the wdcli install directory is
+  authoritative, not `wdcli --help`. Planned-but-blocked on live wdcli:
+  whoami, get_build_log, create_app, copy_app (from a LOCAL directory — the
+  copy-by-reference-id path silently uploads nothing), promote_app (must
+  require an explicit human confirmation string).
 - Tests: Node stdlib runner (`npm test` → `node --test "test/**/*.test.mjs"`),
   no new deps. Every rule/guard needs BOTH a fires-on-bad and a silent-on-good
   case, verified against an independent oracle (hand-specified expectations,
@@ -47,7 +64,15 @@ owner review"; protection reads 404). Fix: `gh auth switch --user krishnagutta`.
 
 ## Knowledge flow (implemented)
 
-- `docs/knowledge/intake.md` — append-only raw observations, dated + sourced.
+- `docs/knowledge/learnings/` — ONE FILE per learning (a shared append-to-one
+  file guarantees merge conflicts), written by `log_extend_learning` (which
+  scrubs credentials/tenant values — public repo) and queried by
+  `get_extend_learnings` (full-text + tag + verification). Tag honestly:
+  `build-verified` proves the grammar parsed; only runtime observation earns
+  `runtime-verified`. Corrections of earlier learnings are themselves
+  learnings (`corrects: <slug>`).
+- `docs/knowledge/intake.md` — historical pre-tool intake log (frozen for new
+  entries; see its header).
 - `docs/knowledge/extend-patterns.md` — the curated tier, served live by
   `get_extend_patterns` (re-read per call; edits reach users without restart).
   New `## Section` headings become addressable sections automatically; the

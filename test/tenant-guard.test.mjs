@@ -19,9 +19,24 @@ test('silent on good: deploy to a non-production tenant is allowed', () => {
   assert.equal(d.reason, undefined);
 });
 
-test('a non-production tenant not on the allowlist is still allowed (behaviour unchanged)', () => {
+test('fires on bad: with an allowlist configured, an unlisted non-prod tenant is REFUSED', () => {
   const d = evaluateDeploy('acme9', { prodTenant: 'acme', safeTenants: SAFE });
+  assert.equal(d.blocked, true);
+  assert.match(d.reason, /EXTEND_SAFE_TENANTS/);
+  assert.equal(d.allowlist_enforced, true);
+});
+
+test('silent on good: with NO allowlist, a non-prod tenant is allowed (weaker mode, flagged)', () => {
+  const d = evaluateDeploy('acme9', { prodTenant: 'acme', safeTenants: new Set() });
   assert.equal(d.blocked, false);
+  assert.equal(d.allowlist_enforced, false);
+});
+
+test('fires on bad: prod tenant is refused even when mistakenly allowlisted', () => {
+  const withProd = new Set([...SAFE, 'acme']);
+  const d = evaluateDeploy('acme', { prodTenant: 'acme', safeTenants: withProd });
+  assert.equal(d.blocked, true);
+  assert.match(d.reason, /production/i);
 });
 
 test('fail closed: unset prod tenant blocks a would-be-safe tenant', () => {
