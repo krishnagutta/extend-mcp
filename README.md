@@ -22,6 +22,11 @@ MCP server for Workday Extend app development. Gives Claude Desktop full read/wr
 | `search_extend_examples` | "Find a working fileUploader example" |
 | `read_extend_example` | "Show me the widget dictionary's buttons page" |
 | `log_extend_learning` | "Record what we learned from that build failure" |
+| `get_extend_whoami` | "What account am I on? What's our org short id?" |
+| `get_extend_build_log` | "Show the log for build 4821" |
+| `create_extend_app` | "Create a new app called Vendor Onboarding" |
+| `copy_extend_app` | "Copy the downloaded app as a V2" |
+| `promote_extend_app` | "Promote v17 to sandbox" (asks you to type a confirmation) |
 | `get_extend_learnings` | "Any past learnings about pagination?" |
 
 ## Prerequisites

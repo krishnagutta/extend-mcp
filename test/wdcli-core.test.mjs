@@ -118,6 +118,6 @@ test('wdcli appends -f json; wdcliRaw does not', async () => {
   await client.wdcliRaw(['app', 'upload', '/dir']);
 
   const cmds = calls.filter((c) => !isAuthCall(c));
-  assert.deepEqual(cmds[0].args, ['app', 'list', '-f', 'json']);
-  assert.deepEqual(cmds[1].args, ['app', 'upload', '/dir']);
+  assert.deepEqual(cmds[0].args, ['app', 'list', '-f', 'json', '--ci']);
+  assert.deepEqual(cmds[1].args, ['app', 'upload', '/dir', '--ci']);
 });

@@ -96,15 +96,20 @@ export function createWdcliClient({ execFileImpl, clientId, clientSecret }) {
     const timeout = options.timeout ?? 60_000;
     const maxBuffer = 50 * 1024 * 1024;
 
+    // --ci disables interactive prompts (every non-auth wdcli command supports
+    // it, per the oclif manifest). A subprocess behind MCP must fail fast, not
+    // hang waiting for a keypress nobody can deliver.
+    const fullArgs = [...args, '--ci'];
+
     await ensureAuth();
-    let result = await attempt(args, { timeout, maxBuffer });
+    let result = await attempt(fullArgs, { timeout, maxBuffer });
 
     if (!result.ok) {
       const auth = classifyAuthFailure(`${result.stderr || ''}\n${result.stdout || ''}`);
       if (auth?.kind === 'account') {
         authPromise = null;
         await ensureAuth();
-        result = await attempt(args, { timeout, maxBuffer });
+        result = await attempt(fullArgs, { timeout, maxBuffer });
       }
       if (!result.ok) {
         const finalAuth = classifyAuthFailure(`${result.stderr || ''}\n${result.stdout || ''}`);

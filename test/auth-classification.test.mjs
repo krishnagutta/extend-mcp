@@ -81,3 +81,15 @@ test('successful retry after account re-auth carries no auth field', async () =>
   assert.equal(result.ok, true);
   assert.equal(result.auth, undefined);
 });
+
+test('every non-auth invocation carries --ci so it can never hang on a prompt', async () => {
+  const { impl, calls } = makeExec([{}, { stdout: '[]' }, { stdout: 'raw' }]);
+  const client = createWdcliClient({ execFileImpl: impl, clientId: 'id', clientSecret: 'sec' });
+  await client.wdcli(['app', 'list']);
+  await client.wdcliRaw(['app', 'upload', '/dir']);
+
+  const [authCall, jsonCall, rawCall] = calls;
+  assert.ok(!authCall.args.includes('--ci'), 'auth login does not support --ci');
+  assert.deepEqual(jsonCall.args, ['app', 'list', '-f', 'json', '--ci']);
+  assert.deepEqual(rawCall.args, ['app', 'upload', '/dir', '--ci']);
+});
