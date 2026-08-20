@@ -9,16 +9,23 @@
  * Fail-closed contract:
  *   - If no production tenant is configured, block EVERYTHING. An unset prod
  *     alias must never make production deployable.
- *   - Deploys to the configured production tenant are always blocked.
- *   - Any other tenant is allowed; `safe` reports whether it is on the
- *     optional advisory allowlist.
+ *   - Deploys to the configured production tenant are always blocked — even if
+ *     someone mistakenly puts it on the allowlist.
+ *   - When EXTEND_SAFE_TENANTS is configured (non-empty), it is an ENFORCED
+ *     allowlist: any tenant not on it is refused. Sandbox tenants refresh
+ *     weekly with production data and hold real employee records, so "not
+ *     production" is not the same as "safe" — list only development tenants.
+ *   - With no allowlist configured, only the production block applies
+ *     (`allowlist_enforced: false` tells the caller the weaker mode is active).
  *
  * @param {string} tenantAlias
  * @param {{ prodTenant?: string, safeTenants?: Set<string> }} opts
- * @returns {{ blocked: boolean, reason?: string, safe: boolean }}
+ * @returns {{ blocked: boolean, reason?: string, safe: boolean, allowlist_enforced: boolean }}
  */
 export function evaluateDeploy(tenantAlias, { prodTenant, safeTenants } = {}) {
-  const safe = safeTenants instanceof Set ? safeTenants.has(tenantAlias) : false;
+  const allowlist = safeTenants instanceof Set ? safeTenants : new Set();
+  const enforced = allowlist.size > 0;
+  const safe = allowlist.has(tenantAlias);
 
   if (!prodTenant) {
     return {
@@ -27,6 +34,7 @@ export function evaluateDeploy(tenantAlias, { prodTenant, safeTenants } = {}) {
         'Deploy blocked: no production tenant is configured (EXTEND_PROD_TENANT is unset), ' +
         'so the production-safety guard cannot run. Set EXTEND_PROD_TENANT and restart.',
       safe,
+      allowlist_enforced: enforced,
     };
   }
 
@@ -34,11 +42,25 @@ export function evaluateDeploy(tenantAlias, { prodTenant, safeTenants } = {}) {
     return {
       blocked: true,
       reason:
-        'Direct production deployment via MCP is disabled for safety. Deploy to a sandbox ' +
-        '(e.g. <tenant>-sb) or impl tenant first, then promote through the Workday Developer Site.',
+        'Direct production deployment via MCP is disabled for safety. Deploy to a development ' +
+        'tenant first, then promote through the Workday Developer Site.',
       safe,
+      allowlist_enforced: enforced,
     };
   }
 
-  return { blocked: false, safe };
+  if (enforced && !safe) {
+    return {
+      blocked: true,
+      reason:
+        `Deploy blocked: '${tenantAlias}' is not on the EXTEND_SAFE_TENANTS allowlist. ` +
+        'Only listed development tenants are deployable. Note: sandbox tenants refresh weekly ' +
+        'with PRODUCTION data and hold real employee records — do not add them casually. ' +
+        'To allow this tenant, add it to EXTEND_SAFE_TENANTS and restart.',
+      safe,
+      allowlist_enforced: enforced,
+    };
+  }
+
+  return { blocked: false, safe, allowlist_enforced: enforced };
 }

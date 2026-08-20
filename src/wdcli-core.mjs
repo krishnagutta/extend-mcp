@@ -8,8 +8,37 @@
 
 const WDCLI_BIN = 'wdcli';
 
-function isAuthError(text) {
-  return text.includes('Authentication required') || text.includes('401');
+// WDCLI has THREE independent credentials, each expiring on its own clock:
+//   account session   (wdcli auth login)          — upload, build, most commands
+//   tenanted token    (wdcli tenant login <alias>) — deploy only; one tenant at a time
+//   API Explorer token (developer.workday.com/api-explorer) — direct REST, ~1h life
+// Retrying account login cannot fix an expired TENANT token, so failures must
+// be classified before deciding to retry, and errors must name the exact fix.
+
+/**
+ * Classify a wdcli failure's auth flavour, or null if it isn't an auth error.
+ * @returns {null | { kind: 'account'|'tenant', fix: string }}
+ */
+export function classifyAuthFailure(text) {
+  const t = String(text ?? '').toLowerCase();
+  if (!/401|unauthorized|authentication|not logged in|login required|expired/.test(t)) {
+    return null;
+  }
+  if (/tenant/.test(t)) {
+    return {
+      kind: 'tenant',
+      fix:
+        'Tenanted token missing or expired. This is separate from the account session and only ' +
+        'a human can mint it: run `wdcli tenant login <alias>` (browser SSO), then retry. ' +
+        'Tenanted tokens are per-tenant — logging into one tenant does not cover another.',
+    };
+  }
+  return {
+    kind: 'account',
+    fix:
+      'Account session expired. The server re-runs `wdcli auth login --system-user` automatically; ' +
+      'if this persists, verify WDCLI_CLIENT_ID / WDCLI_CLIENT_SECRET are valid.',
+  };
 }
 
 /**
@@ -59,8 +88,9 @@ export function createWdcliClient({ execFileImpl, clientId, clientSecret }) {
   }
 
   /**
-   * Run wdcli with auth, retrying exactly once after re-auth if the first
-   * attempt failed with an authentication error.
+   * Run wdcli with auth. ACCOUNT-session failures re-auth and retry exactly
+   * once; TENANT-token failures fail fast (account re-login cannot fix them)
+   * with the exact remediation attached as `auth`.
    */
   async function run(args, options = {}) {
     const timeout = options.timeout ?? 60_000;
@@ -69,10 +99,17 @@ export function createWdcliClient({ execFileImpl, clientId, clientSecret }) {
     await ensureAuth();
     let result = await attempt(args, { timeout, maxBuffer });
 
-    if (!result.ok && isAuthError(result.stderr || '')) {
-      authPromise = null;
-      await ensureAuth();
-      result = await attempt(args, { timeout, maxBuffer });
+    if (!result.ok) {
+      const auth = classifyAuthFailure(`${result.stderr || ''}\n${result.stdout || ''}`);
+      if (auth?.kind === 'account') {
+        authPromise = null;
+        await ensureAuth();
+        result = await attempt(args, { timeout, maxBuffer });
+      }
+      if (!result.ok) {
+        const finalAuth = classifyAuthFailure(`${result.stderr || ''}\n${result.stdout || ''}`);
+        if (finalAuth) result.auth = finalAuth;
+      }
     }
 
     return result;
@@ -83,7 +120,7 @@ export function createWdcliClient({ execFileImpl, clientId, clientSecret }) {
     const result = await run([...args, '-f', 'json'], options);
 
     if (!result.ok) {
-      return { ok: false, error: result.stderr || result.stdout || result.message, code: result.code };
+      return { ok: false, error: result.stderr || result.stdout || result.message, code: result.code, auth: result.auth };
     }
 
     if (result.stderr) {
@@ -103,7 +140,7 @@ export function createWdcliClient({ execFileImpl, clientId, clientSecret }) {
     const result = await run(args, { ...options, timeout: options.timeout ?? 120_000 });
 
     if (!result.ok) {
-      return { ok: false, error: result.stderr || result.stdout || result.message, code: result.code };
+      return { ok: false, error: result.stderr || result.stdout || result.message, code: result.code, auth: result.auth };
     }
 
     return { ok: true, data: (result.stdout + result.stderr).trim() };

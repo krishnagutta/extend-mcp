@@ -4,6 +4,7 @@ import { existsSync, readdirSync } from 'fs';
 import { wdcliRaw } from '../wdcli.mjs';
 import { config } from '../config.mjs';
 import { appDirFor } from '../workspace.mjs';
+import { diagnoseBuildLog } from '../build-log.mjs';
 import { ok, err } from '../respond.mjs';
 
 // Backups now live outside the app dir, but earlier versions of
@@ -50,13 +51,17 @@ export function register(server) {
       if (!wait_for_build) args.push('--no-build-wait');
 
       const result = await wdcliRaw(args, { timeout: 300_000 });
+      const outputText = result.data ?? result.error ?? '';
+      const diagnosis = result.ok ? null : diagnoseBuildLog(outputText);
 
       return ok({
         success: result.ok,
         referenceId: reference_id,
-        output: result.data ?? result.error,
+        output: outputText,
+        ...(diagnosis ? { build_diagnosis: diagnosis } : {}),
+        ...(result.auth ? { auth_failure: result.auth } : {}),
         next_step: result.ok
-          ? 'Upload complete. Use list_extend_app_versions to find the new version, then deploy_extend_app to deploy it.'
+          ? 'Upload complete. A green build proves the grammar parsed — NOT runtime behavior (only a UI submission proves a form, only a launched flow proves an orchestration). Use list_extend_app_versions to find the new version, then deploy_extend_app.'
           : 'Upload failed. Check the output for errors.',
       });
     }

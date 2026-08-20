@@ -17,10 +17,12 @@ MCP server for Workday Extend app development. Gives Claude Desktop full read/wr
 | `write_extend_app_file` | "Update the Open Positions section" |
 | `validate_extend_app` | "Validate before I upload" |
 | `upload_extend_app` | "Upload my changes and wait for build" |
-| `deploy_extend_app` | "Deploy v428 to sandbox (<tenant>-sb)" |
+| `deploy_extend_app` | "Deploy v428 to our dev tenant" |
 | `get_extend_patterns` | "How does PMD scripting handle object literals?" |
 | `search_extend_examples` | "Find a working fileUploader example" |
 | `read_extend_example` | "Show me the widget dictionary's buttons page" |
+| `log_extend_learning` | "Record what we learned from that build failure" |
+| `get_extend_learnings` | "Any past learnings about pagination?" |
 
 ## Prerequisites
 
@@ -72,7 +74,7 @@ Then add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
         "WDCLI_CLIENT_ID": "your_client_id",
         "WDCLI_CLIENT_SECRET": "your_client_secret",
         "EXTEND_PROD_TENANT": "your_prod_tenant_alias",
-        "EXTEND_SAFE_TENANTS": "your_sandbox_alias,your_impl_alias",
+        "EXTEND_SAFE_TENANTS": "your_dev_tenant_alias1,your_dev_tenant_alias2",
         "EXTEND_WORK_DIR": "/Users/YOUR_USERNAME/extend-workspace"
       }
     }
@@ -138,6 +140,9 @@ to pull updates).
 
 ## Safety notes
 
-- **Production deploys are blocked** — `deploy_extend_app` refuses to deploy to the configured production tenant (`EXTEND_PROD_TENANT`), and the server refuses to start if that variable is unset — the guard fails closed. Promote through the Workday Developer Site after validating in sandbox.
-- **Backups on write** — `write_extend_app_file` creates a `.bak` before overwriting.
+- **Production deploys are blocked** — `deploy_extend_app` refuses to deploy to the configured production tenant (`EXTEND_PROD_TENANT`), and the server refuses to start if that variable is unset — the guard fails closed. Promote through the Workday Developer Site after validating in a development tenant.
+- **Deploy allowlist** — when `EXTEND_SAFE_TENANTS` is set it is enforced: any tenant not on it is refused. List only development tenants — sandbox tenants refresh weekly with production data and hold real employee records.
+- **Auth failures name their fix** — wdcli has three independent credentials (account session, per-tenant token, API Explorer token); errors are classified and say exactly which login to rerun.
+- **No token exposure** — the server never invokes the wdcli commands that print live bearer tokens (`config show`-style), enforced by a source-scan test.
+- **Backups on write** — `write_extend_app_file` keeps backups under `EXTEND_WORK_DIR/.backups/`, outside the uploaded app directory.
 - **Credentials stay local** — never commit `.env` or put credentials in `config.json`.

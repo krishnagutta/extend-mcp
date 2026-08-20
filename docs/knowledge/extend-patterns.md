@@ -112,13 +112,65 @@ manual: create the domain security policy in App Manager, grant the security
 group Report/Task permissions, then run **Activate Pending Security Policy
 Changes** — an app whose tasks 403 usually has pending security.
 
+## Credentials and tenants
+
+WDCLI has THREE independent credentials, each expiring on its own clock —
+classify auth failures before "fixing" them, because retrying the wrong login
+fixes nothing:
+
+- **Account session** (`wdcli auth login`) — upload, build, most commands.
+  This server maintains it automatically via system-user client credentials.
+- **Tenanted token** (`wdcli tenant login <alias>`) — deploys only, one tenant
+  at a time, browser SSO that only a human can complete. Per-tenant: logging
+  into one tenant does not cover another.
+- **API Explorer token** (copy from developer.workday.com/api-explorer) —
+  direct REST calls from scripts, roughly 1-hour life.
+
+REST gotchas: a 401 body parses as valid JSON — check the HTTP status before
+parsing or an expired token masquerades as "no data"; the app REST API
+silently paginates at 20, so every collection read needs an explicit limit.
+
+Tenant safety: develop against DEVELOPMENT tenants only. Sandbox tenants
+refresh weekly with PRODUCTION data and hold real employee records — "not
+production" is not "safe". When `EXTEND_SAFE_TENANTS` is set it is an enforced
+allowlist. Never expose `wdcli config show`, `auth token`, or `tenant token`
+through any tool — all three print live bearer tokens in plaintext.
+
+## Build diagnostics
+
+The build is the oracle, and its failure modes are learnable:
+
+- **Empty log = parse error.** If the log stops after "Downloading source
+  code" with no Validating/Compiling lines, the grammar never parsed — an
+  unknown property, a non-ASCII character, an id collision. Not a logic error.
+  `upload_extend_app` flags this signature as `build_diagnosis`.
+- **One variable per build.** When green goes red, bisect by reverting the
+  single change; re-apply a multi-part change incrementally.
+- **Green ≠ working.** A green build proves the grammar parsed, not runtime
+  behavior: only a UI submission proves a form's onSend, only a launched flow
+  proves an orchestration. Learnings distinguish `build-verified` from
+  `runtime-verified` for exactly this reason.
+- **Rule zero: never write a Workday component from memory.** Ground every
+  component, in order of authority: downloaded real apps → the DevRel corpus
+  (`search_extend_examples`) → the per-tag reference pages under
+  developer.workday.com/documentation (the PMD tags index, doc id
+  dyg1528862158582, lists every tag; each tag's page has the full property
+  table) → Workday Community → the API Explorer.
+- Apps are **permanent** — WDCLI has no delete. Name throwaways obviously
+  (`zzTest...`), and remember apps are named `<name>_<orgShortId>`.
+
 ## Working with this MCP
 
 - Cycle: `download_extend_app` → edit (`read`/`write_extend_app_file`) →
   `validate_extend_app` → `upload_extend_app` (builds) →
-  `list_extend_app_versions` → `deploy_extend_app` to a non-production tenant.
-- Deploys to `EXTEND_PROD_TENANT` are refused; promote through the Workday
-  Developer Site after sandbox validation.
+  `list_extend_app_versions` → `deploy_extend_app` to an allowlisted
+  development tenant.
+- Deploys to `EXTEND_PROD_TENANT` are always refused, and when
+  `EXTEND_SAFE_TENANTS` is set, so is any tenant not on it. Promote through
+  the Workday Developer Site after validating in a dev tenant.
+- After any failure that cost a build: `log_extend_learning` (one file per
+  learning, scrubbed of tenant values). Before debugging or writing an
+  unfamiliar component: `get_extend_learnings`.
 - Backups of edited files land in `EXTEND_WORK_DIR/.backups/`; uploads refuse
   while stray `.bak` files sit inside the app directory.
 - `download_extend_app` refuses to overwrite local edits unless
