@@ -5,7 +5,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { tmpdir } from 'os';
 import {
-  slugify, checkLearningSafety, formatLearning, parseLearning, searchLearnings,
+  slugify, checkLearningSafety, formatLearning, parseLearning, searchLearnings, resolveLearningsDir,
 } from '../src/learnings.mjs';
 
 // ── scrub ───────────────────────────────────────────────────────────
@@ -103,4 +103,16 @@ test('shipped learnings parse and contain no sensitive content', () => {
     const safety = checkLearningSafety(`${e.title}\n${e.body}`);
     assert.equal(safety.ok, true, `${e.slug}: ${safety.violations}`);
   }
+});
+
+// ── learnings dir override ──────────────────────────────────────────
+
+test('fires on override: EXTEND_LEARNINGS_DIR wins and is absolute', () => {
+  const d = resolveLearningsDir({ EXTEND_LEARNINGS_DIR: '/tmp/engagement-x/learnings' }, '/repo/docs/knowledge/learnings');
+  assert.equal(d, '/tmp/engagement-x/learnings');
+});
+
+test('silent on good: unset or blank override keeps the repo default', () => {
+  assert.equal(resolveLearningsDir({}, '/repo/default'), '/repo/default');
+  assert.equal(resolveLearningsDir({ EXTEND_LEARNINGS_DIR: '   ' }, '/repo/default'), '/repo/default');
 });

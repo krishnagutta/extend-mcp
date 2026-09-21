@@ -1,10 +1,8 @@
 import { z } from 'zod';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
 import { searchLearnings } from '../learnings.mjs';
 import { ok } from '../respond.mjs';
+import { config } from '../config.mjs';
 
-const LEARNINGS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'docs', 'knowledge', 'learnings');
 const MAX_FULL_BODIES = 10;
 
 export function register(server) {
@@ -17,7 +15,7 @@ export function register(server) {
       verification: z.enum(['unverified', 'build-verified', 'runtime-verified']).optional(),
     },
     async ({ query, tag, verification }) => {
-      const entries = searchLearnings(LEARNINGS_DIR, { query, tag, verification });
+      const entries = searchLearnings(config.learningsDir, { query, tag, verification });
       const full = entries.length <= MAX_FULL_BODIES;
 
       return ok({

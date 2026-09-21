@@ -41,14 +41,23 @@ export function classifyAuthFailure(text) {
   };
 }
 
+export const BROWSER_LOGIN_FIX =
+  'Account session missing or expired and no system user is configured, so the server cannot ' +
+  're-authenticate on its own. A human runs `wdcli auth login` (browser OAuth) using the SAME ' +
+  'HOME / WDCLI_CONFIG_DIR this server runs with, then retries.';
+
 /**
- * @param {{ execFileImpl: Function, clientId: string, clientSecret: string }} deps
+ * @param {{ execFileImpl: Function, clientId?: string, clientSecret?: string }} deps
  *   execFileImpl: promisified execFile-compatible (bin, args, opts) => {stdout, stderr}
+ *   clientId/clientSecret: system-user credentials. When BOTH are absent the client runs in
+ *   browser mode: it never invokes `auth login` and never retries account-auth failures.
  */
 export function createWdcliClient({ execFileImpl, clientId, clientSecret }) {
   let authPromise = null;
+  const browserMode = !clientId || !clientSecret;
 
   function ensureAuth() {
+    if (browserMode) return Promise.resolve();
     if (!authPromise) {
       const env = {
         ...process.env,
@@ -106,14 +115,17 @@ export function createWdcliClient({ execFileImpl, clientId, clientSecret }) {
 
     if (!result.ok) {
       const auth = classifyAuthFailure(`${result.stderr || ''}\n${result.stdout || ''}`);
-      if (auth?.kind === 'account') {
+      if (auth?.kind === 'account' && !browserMode) {
         authPromise = null;
         await ensureAuth();
         result = await attempt(fullArgs, { timeout, maxBuffer });
       }
       if (!result.ok) {
         const finalAuth = classifyAuthFailure(`${result.stderr || ''}\n${result.stdout || ''}`);
-        if (finalAuth) result.auth = finalAuth;
+        if (finalAuth) {
+          result.auth =
+            finalAuth.kind === 'account' && browserMode ? { ...finalAuth, fix: BROWSER_LOGIN_FIX } : finalAuth;
+        }
       }
     }
 
