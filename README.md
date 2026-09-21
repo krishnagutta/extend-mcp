@@ -28,6 +28,8 @@ MCP server for Workday Extend app development. Gives Claude Desktop full read/wr
 | `copy_extend_app` | "Copy the downloaded app as a V2" |
 | `promote_extend_app` | "Promote v17 to sandbox" (asks you to type a confirmation) |
 | `get_extend_learnings` | "Any past learnings about pagination?" |
+| `get_extend_schema` | "Which attributes does a grid really have?" (schema-by-example from the DevRel corpus) |
+| `get_extend_best_practices` | "What does Workday say about grid paging?" (DevRel guide + Arcane Auditor rules) |
 
 ## Prerequisites
 

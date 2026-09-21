@@ -188,3 +188,106 @@ The upstream `catalog/` is closed to external PRs (CODEOWNERS-gated; open an
 issue instead). The `examples/` section **is** open to community contributions
 — "Agent Skill" is an approved type and the section is sparse (3 entries as of
 2026-08) — a candidate home for Extend-related agent skills built here.
+
+## Grounding workflow
+
+Extend syntax and limits are easy to misremember. Before writing or reviewing a component, look it up:
+
+1. `get_extend_schema` — which attributes actually occur on a widget, endpoint, business-object field or orchestration
+   node in real apps, with values and example files. An attribute or widget that does not occur there is a red flag,
+   not a creative option.
+2. `get_extend_best_practices` — Workday DevRel's rule-by-rule guide (the Arcane Auditor rules run on every example PR).
+   Cite the rule name in a review instead of an opinion.
+3. `search_extend_examples` / `read_extend_example` — copy the shape from a working app, then adapt.
+4. `get_extend_learnings` — failures already paid for.
+5. Official docs for numbers: developer.workday.com "Reference: Limits on Extend App Components" and "Reference:
+   Orchestration Runtime Limits". Never quote a limit from memory; re-check each release.
+
+Source tiers, strongest first: Workday documentation, real app file, tool ground truth (wdcli manifest, build log),
+community post, memory. Say which one a claim rests on.
+
+## Platform limits
+
+Checked 2026-09 against developer.workday.com ("Limits on Extend App Components", "Orchestration Runtime Limits") and the
+admin guide ("Limits on Presentation Components", "WQL Result Limits", "WQL and RaaS Comparisons"). Re-check each release.
+
+- **Model:** 20 business objects per app; 50 fields per object; 10 SINGLE_/MULTI_INSTANCE fields per object; 25 instance
+  fields targeting Workday-delivered objects per app; 5 with enableReportingFromTarget per app; 5 indexable fields per
+  object; 40 derived fields per object; 3 searchable TEXT fields per app; 10 security domains, 5 business processes,
+  20 tasks, 10 reports, 5 attachment objects per app; attachments 30 MB. Instance capacity is tenant-wide and SKU-bound.
+- **Presentation:** 24 s per endpoint; 60 s per PMD request (load, submit, remote validation, all endpoints together);
+  30 outbound endpoints per PMD; 30 non-deferred inbound endpoints; 25 MB endpoint response; 75 pages per app; 100 KB per
+  .pmd/.amd/.smd/.pod/.script file; PMD script 5 s CPU, 25 call frames, 2 nested module levels; labels 255 chars;
+  fileUploader 10 MB per file, 5 files, and xlsx is not in the default allowed types.
+- **Orchestration:** 25 s when a page triggers a synchronous orchestration (overrides its own timeout); 5 min synchronous
+  otherwise; 48 h asynchronous; one process 60 min in production, 45 min elsewhere; 31 recursive synchronous self-calls;
+  300 steps; 150 orchestrations and sub-orchestrations per app; 200 MB in memory; 20 MB launch message.
+- **Data access:** REST collections default 20, maximum 100 per request, so always pass an explicit limit; WQL 1,000,000
+  rows per query, 10,000 per page, 5 min through api.workday.com; RaaS has no pagination; API calls are throttled per
+  second with HTTP 429.
+- Custom Object limits (200 fields, 1,500 instances) are a different feature and do not apply to Extend business objects.
+- Workday states Extend apps "are not intended for high-volume import or export of large quantities of data".
+
+## Business object schema
+
+From the corpus index (44 business objects). Top level always has `id`, `name`, `label`, `defaultSecurityDomains`,
+`defaultCollection` ({ name, label }) and `fields`; `derivedFields` is optional. Field types seen: TEXT, SINGLE_INSTANCE,
+BOOLEAN, DATE, DECIMAL, MULTI_INSTANCE, INTEGER, CURRENCY. Every field has `id`, `name`, `type`.
+
+- **TEXT** adds `useForDisplay`, `isReferenceId`, `enableIndex`, `enableSearch`, `isPurgeable`, optional `securityDomains`.
+  Indexing is opt-in (`enableIndex: true` on 4 of 46 fields that state it): decide which filters deserve an index.
+- **SINGLE_INSTANCE / MULTI_INSTANCE** add `target` (uppercase Workday object such as `WORKER`, or another object in the
+  same app by name), `secureByTarget`, `useForDisplay`, `enableReportingFromTarget`, `isPurgeable`.
+- A target must be on the tenant's *View Business Objects Available for Extension* report. Check before modelling.
+- Run `get_extend_schema` with kind `businessobject-field` for the live table rather than trusting this summary.
+
+## Grids, paging and endpoint safety
+
+- **Server-side paging** uses the grid's `pagingInfo` object: `{ endPoint, rowCount, data }` bound to a paged endpoint
+  (see `catalog/pmdWidgetDictionary/presentation/gridsView.pmd`). `autoPaging` also exists.
+- **Do not combine paging with `sortableAndFilterable` columns** (GridPagingWithSortableFilterableRule, ACTION): every page
+  change refetches, re-sorts and re-filters. Page on the server and filter with prompts, or keep the set small and
+  unpaged.
+- A grid bound to an unfiltered collection loads everything; the 24 s endpoint limit is what users then hit. Put project,
+  status and owner scope in the query, select only displayed columns, and pass a limit.
+- `excelExportEnabled` is limited to about 60 s and Workday warns above 4,000 rows; export large sets with RaaS.
+- **`isCollection: true` on inbound endpoints** can degrade the whole tenant under concurrent use
+  (NoIsCollectionOnEndpointsRule). Prefer WQL or RaaS.
+- **Always set `failOnStatusCodes`** (at least 400 and 403) or failures are swallowed (EndpointFailOnStatusCodesRule).
+- Keep queries in WQL Query components (`wqlQuery` on the endpoint) with parameters instead of concatenating strings in
+  PMD script; interpolating user input into `contains('…')` is also an injection risk.
+- Endpoint attributes that really occur: `name`, `baseUrlType`, `url`, `authType` (sso, isu, noAuth), `exclude`,
+  `deferred`, `httpMethod`, `wqlQuery`, `graphQuery`, `failOnStatusCodes`, `isCollection`, `bestEffort`, `onSend`,
+  `responseErrorDetail`, `headers`.
+
+## Orchestration vocabulary
+
+Node types that occur in the corpus include SendWorkdayApiRequest, SendHttpRequest, CallSubflow, Loop, BatchLoop with
+SizeBasedBatchStrategy or CustomBatchStrategy, JoinLoop, Aggregate, BranchOnConditions, ContinueOnConditions,
+ErrorHandler, RetryPolicy with BackOff, Validate / ValidationCheck, CreateJson, CreateTextTemplate, CsvFormat / CsvColumn,
+StoreDocument, LogToFile, SendIntegrationMessage, AwsLambdaInvoke. Flow type is `.maya.FlowSync` or `.maya.FlowAsync`.
+
+- There is **no Excel parsing node** in the corpus; file ingestion examples parse CSV (`asCSV()`). Treat xlsx upload as
+  unproven until demonstrated in a tenant.
+- A synchronous orchestration launched from a page that loops over hundreds of writes will hit the 25 s page limit and
+  apply only part of the work. Use FlowAsync, a status object the page polls, and BatchLoop.
+- Add an ErrorHandler and a RetryPolicy with back-off around API steps; expect HTTP 429 under load.
+- ISU-authenticated endpoints fail with HTTP 500 and an empty body until the ISU is assigned to the app in Application
+  Manager in that tenant; naming it in the SMD is not enough. Re-check after every promotion.
+
+## WDCLI operations
+
+Verified against wdcli 1.9.20 (its `oclif.manifest.json` is the authority; `--help` hides commands).
+
+- `app download`, `app deploy` and `app builds` need a version selector: `--version`, `--version-id` or `--latest-version`.
+- `auth login` without `--system-user` is a browser OAuth flow: it listens on `127.0.0.1:64000`, opens the default
+  browser, and gives up after a hard-coded 60 seconds. Landing on the Developer Site downloads page means the callback
+  was missed; be signed in to the right identity first and retry. `tenant login <alias>` works the same way.
+- Login environment is `enterprise` by default; `personal` and `eusovereign` exist (`WDCLI_ENVIRONMENT` or config).
+- wdcli is an oclif CLI, so `WDCLI_CONFIG_DIR`, `WDCLI_DATA_DIR` and `WDCLI_CACHE_DIR` (or a different `HOME`) give a
+  fully separate profile. Use one per client or engagement; never share sessions across them.
+- This server runs without system-user credentials when `WDCLI_CLIENT_ID` and `WDCLI_CLIENT_SECRET` are both empty: it
+  never logs in by itself and tells you to run `wdcli auth login` in the same profile when the session expires.
+- The macOS installer's post-install script links into `/usr/local/bin`; on Apple Silicon Macs that directory may not
+  exist, the installer reports failure, and the payload is still at `/usr/local/opt/workday/wdcli`. Create the directory
+  and the symlink by hand.
