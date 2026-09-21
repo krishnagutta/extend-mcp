@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createWdcliClient } from '../src/wdcli-core.mjs';
+import { createWdcliClient, BROWSER_LOGIN_FIX } from '../src/wdcli-core.mjs';
 
 // Fake execFile: scripted per-call behaviour, records every invocation.
 function makeExec(script) {
@@ -120,4 +120,45 @@ test('wdcli appends -f json; wdcliRaw does not', async () => {
   const cmds = calls.filter((c) => !isAuthCall(c));
   assert.deepEqual(cmds[0].args, ['app', 'list', '-f', 'json', '--ci']);
   assert.deepEqual(cmds[1].args, ['app', 'upload', '/dir', '--ci']);
+});
+
+// ── browser (OAuth) mode: no system user configured ────────────────
+
+test('browser mode: never invokes auth login', async () => {
+  const calls = [];
+  const impl = async (bin, args) => { calls.push(args.join(' ')); return { stdout: '{}', stderr: '' }; };
+  const client = createWdcliClient({ execFileImpl: impl });
+  await Promise.all([client.wdcliRaw(['whoami']), client.wdcliRaw(['tenant', 'list'])]);
+  assert.equal(calls.filter((c) => c.startsWith('auth login')).length, 0);
+  assert.equal(calls.length, 2);
+});
+
+test('browser mode: account 401 is not retried and names the human fix', async () => {
+  let n = 0;
+  const impl = async (bin, args) => {
+    n += 1;
+    const e = new Error('401 Unauthorized'); e.stderr = '401 Unauthorized: not logged in'; e.stdout = '';
+    throw e;
+  };
+  const client = createWdcliClient({ execFileImpl: impl });
+  const r = await client.wdcliRaw(['whoami']);
+  assert.equal(r.ok, false);
+  assert.equal(n, 1);
+  assert.equal(r.auth?.kind, 'account');
+  assert.equal(r.auth?.fix, BROWSER_LOGIN_FIX);
+});
+
+test('system-user mode still re-auths (regression guard for browser-mode change)', async () => {
+  const calls = [];
+  let first = true;
+  const impl = async (bin, args) => {
+    calls.push(args.join(' '));
+    if (args[0] === 'auth') return { stdout: '', stderr: '' };
+    if (first) { first = false; const e = new Error('401'); e.stderr = '401 unauthorized'; e.stdout = ''; throw e; }
+    return { stdout: '{}', stderr: '' };
+  };
+  const client = createWdcliClient({ execFileImpl: impl, clientId: 'id', clientSecret: 'sec' });
+  const r = await client.wdcliRaw(['whoami']);
+  assert.equal(r.ok, true);
+  assert.equal(calls.filter((c) => c.startsWith('auth login')).length, 2);
 });

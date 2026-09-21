@@ -19,6 +19,8 @@ import { register as registerSearchExamples } from './tools/search-extend-exampl
 import { register as registerReadExample } from './tools/read-extend-example.mjs';
 import { register as registerLogLearning } from './tools/log-extend-learning.mjs';
 import { register as registerGetLearnings } from './tools/get-extend-learnings.mjs';
+import { register as registerGetSchema } from './tools/get-extend-schema.mjs';
+import { register as registerBestPractices } from './tools/get-extend-best-practices.mjs';
 import { register as registerWhoami } from './tools/get-extend-whoami.mjs';
 import { register as registerBuildLog } from './tools/get-extend-build-log.mjs';
 import { register as registerCreateApp } from './tools/create-extend-app.mjs';
@@ -27,7 +29,7 @@ import { register as registerPromoteApp } from './tools/promote-extend-app.mjs';
 
 const server = new McpServer({
   name: 'extend-mcp',
-  version: '1.3.0',
+  version: '1.4.0',
 });
 
 // Discovery
@@ -61,6 +63,10 @@ registerSearchExamples(server);
 registerReadExample(server);
 registerLogLearning(server);
 registerGetLearnings(server);
+
+// Grounding (schema-by-example index + Workday DevRel best practices, both from the live corpus)
+registerGetSchema(server);
+registerBestPractices(server);
 
 const transport = new StdioServerTransport();
 await server.connect(transport);

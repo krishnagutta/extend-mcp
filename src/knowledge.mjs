@@ -2,17 +2,18 @@
 // exact title or keyword. Pure functions — the tool layer reads the file.
 
 /**
- * Split markdown into sections at `## ` headings. Content before the first
+ * Split markdown into sections at headings of `level` (default 2, `## `). Content before the first
  * `## ` (the doc title/preamble) becomes the section titled '_intro'.
  * @returns {Array<{ title: string, body: string }>}
  */
-export function parseSections(markdown) {
+export function parseSections(markdown, { level = 2 } = {}) {
   const lines = String(markdown ?? '').split('\n');
+  const heading = new RegExp(`^#{${level}}\\s+(.*)$`);
   const sections = [];
   let current = { title: '_intro', body: [] };
 
   for (const line of lines) {
-    const m = line.match(/^##\s+(.*)$/);
+    const m = line.match(heading);
     if (m) {
       sections.push(current);
       current = { title: m[1].trim(), body: [] };

@@ -74,6 +74,12 @@ test('shipped extend-patterns.md parses with the expected core sections', () => 
     'Orchestration patterns',
     'Prism + Extend patterns',
     'Working with this MCP',
+    'Grounding workflow',
+    'Platform limits',
+    'Business object schema',
+    'Grids, paging and endpoint safety',
+    'Orchestration vocabulary',
+    'WDCLI operations'
   ]) {
     assert.ok(titles.includes(required), `missing section: ${required}`);
   }

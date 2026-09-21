@@ -1,3 +1,4 @@
+import { resolve } from 'path';
 // Learnings loop: one FILE per learning (a single append-to file guarantees
 // merge conflicts the moment the repo is shared), queryable by full text and
 // tag, with a hard scrub: learnings must never contain credentials, bearer
@@ -99,4 +100,15 @@ export function searchLearnings(dir, { query, tag, verification } = {}) {
     results.push(entry);
   }
   return results;
+}
+
+/**
+ * Where learnings are read from and written to. Default is the repo-tracked
+ * docs/knowledge/learnings/. EXTEND_LEARNINGS_DIR overrides it so a second
+ * registration of this server (another client or engagement) keeps its
+ * learnings out of this public repo. Relative values resolve against cwd.
+ */
+export function resolveLearningsDir(env, defaultDir) {
+  const override = (env?.EXTEND_LEARNINGS_DIR ?? '').trim();
+  return override ? resolve(override) : defaultDir;
 }

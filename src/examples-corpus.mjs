@@ -14,6 +14,9 @@ export const CORPUS_WEB = 'https://github.com/Workday/WorkdayDeveloperProgram/bl
 const TEXT_EXTENSIONS = new Set([
   'pmd', 'amd', 'smd', 'pod', 'script', 'orchestration', 'suborchestration',
   'businessobject', 'task', 'securitydomain', 'attachment', 'carddefinition',
+  // Present in the corpus but previously skipped (verified against the repo tree 2026-09):
+  'card', 'wqlquery', 'graphquery', 'businessprocess', 'report', 'properties',
+  'attributes', 'mock_response',
   'json', 'md', 'wql', 'csv', 'xml', 'xsl', 'yaml', 'yml', 'txt',
 ]);
 
