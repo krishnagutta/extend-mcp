@@ -93,3 +93,16 @@ test('every non-auth invocation carries --ci so it can never hang on a prompt', 
   assert.deepEqual(jsonCall.args, ['app', 'list', '-f', 'json', '--ci']);
   assert.deepEqual(rawCall.args, ['app', 'upload', '/dir', '--ci']);
 });
+
+// ── personal developer accounts ─────────────────────────────────────
+
+test('browser-mode login fix tells personal-account users to pass --environment personal', async () => {
+  const { BROWSER_LOGIN_FIX } = await import('../src/wdcli-core.mjs');
+  assert.match(BROWSER_LOGIN_FIX, /--environment personal/);
+  assert.match(BROWSER_LOGIN_FIX, /WDCLI_ENVIRONMENT=personal/);
+});
+
+test('system-user account fix does not send users to the personal browser login', () => {
+  const c = classifyAuthFailure('HTTP 401 Unauthorized');
+  assert.doesNotMatch(c.fix, /environment personal/);
+});

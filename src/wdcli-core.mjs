@@ -44,7 +44,10 @@ export function classifyAuthFailure(text) {
 export const BROWSER_LOGIN_FIX =
   'Account session missing or expired and no system user is configured, so the server cannot ' +
   're-authenticate on its own. A human runs `wdcli auth login` (browser OAuth) using the SAME ' +
-  'HOME / WDCLI_CONFIG_DIR this server runs with, then retries.';
+  'HOME / WDCLI_CONFIG_DIR this server runs with, then retries. Personal developer accounts ' +
+  '(Workday Digital ID) must add `--environment personal` (or set WDCLI_ENVIRONMENT=personal): ' +
+  'the default `enterprise` environment never hands the sign-in back to the CLI, so the browser ' +
+  'lands on the Developer Site and the login times out.';
 
 /**
  * @param {{ execFileImpl: Function, clientId?: string, clientSecret?: string }} deps

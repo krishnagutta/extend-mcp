@@ -283,7 +283,12 @@ Verified against wdcli 1.9.20 (its `oclif.manifest.json` is the authority; `--he
 - `auth login` without `--system-user` is a browser OAuth flow: it listens on `127.0.0.1:64000`, opens the default
   browser, and gives up after a hard-coded 60 seconds. Landing on the Developer Site downloads page means the callback
   was missed; be signed in to the right identity first and retry. `tenant login <alias>` works the same way.
-- Login environment is `enterprise` by default; `personal` and `eusovereign` exist (`WDCLI_ENVIRONMENT` or config).
+- Login environment is `enterprise` by default; `personal` and `eusovereign` exist (`--environment` / `-e`,
+  `WDCLI_ENVIRONMENT` or config). Personal developer accounts (Workday Digital ID sign-in) MUST use
+  `auth login --environment personal`: with the default, the "personal account" link drops the CLI's authorize
+  request, the browser ends on the Developer Site home page and the CLI times out. `tenant login` then works normally.
+- The browser login prints "press Enter to cancel" and reads stdin: any keypress in that terminal (including an
+  agent's terminal pane) cancels it. Two concurrent logins collide on port 64000 (`EADDRINUSE`); run one at a time.
 - wdcli is an oclif CLI, so `WDCLI_CONFIG_DIR`, `WDCLI_DATA_DIR` and `WDCLI_CACHE_DIR` (or a different `HOME`) give a
   fully separate profile. Use one per client or engagement; never share sessions across them.
 - This server runs without system-user credentials when `WDCLI_CLIENT_ID` and `WDCLI_CLIENT_SECRET` are both empty: it
