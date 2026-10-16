@@ -61,6 +61,20 @@ You need a Workday Developer Platform system user:
 
 > Each team member should create their own system user. Do not share credentials.
 
+### Personal developer accounts (no system user)
+
+Leave `WDCLI_CLIENT_ID` / `WDCLI_CLIENT_SECRET` empty and log in once in the browser, in the same profile
+(`HOME` / `WDCLI_CONFIG_DIR`) the server runs with:
+
+```bash
+wdcli auth login --environment personal   # or: export WDCLI_ENVIRONMENT=personal
+wdcli tenant login <your-dev-tenant>      # needed for deploys
+```
+
+Without `--environment personal`, signing in with a Workday Digital ID lands you on the Developer Site home
+page and the CLI reports `Timed out waiting for authentication`. While the login waits, do not press Enter in
+that terminal (it cancels), and do not start a second login (both need port 64000).
+
 ## Manual install
 
 ```bash
