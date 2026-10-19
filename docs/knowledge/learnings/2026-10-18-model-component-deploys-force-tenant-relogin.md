@@ -11,6 +11,8 @@ verification: runtime-verified (two episodes, one tenant); mechanism is inferenc
 
 **Working explanation (inference, not documented):** a deploy that changes model-level or attribute components breaks the Workday UI shell bootstrap for sessions that were already signed in, while the API behind the same session keeps answering. Two data points: a second session still received 200 responses with real inbox data five minutes into the second blank period, and 401s only appeared about fifty minutes into the first one. A fresh login rebuilds the shell. So the "outage" is a forced re-login for existing sessions, not a tenant failure, and the CLI's `success: false` in that case does not mean the build was rejected.
 
+**Caveat (same day, later):** the tenant owner reported the development tenant itself as down at about the time of the second episode, so both blank-shell episodes may have been tenant outages that coincided with the deploys rather than effects of them. Keep both readings until a model deploy is tried on a healthy tenant with a second signed-in session watching.
+
 **Rules:**
 - After any deploy that adds or changes `model/` or `attributes/` components, expect every signed-in browser session in the tenant to go blank; sign out and sign in again before judging the deploy.
 - Do not trust `success: false` with an empty message after such a deploy. Check `wdcli app builds` for the build and open a page: a page-security refusal or new layout proves it landed.
