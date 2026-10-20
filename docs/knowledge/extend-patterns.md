@@ -84,6 +84,8 @@ file `presentation/<widget>.pmd`.
 
 ## Orchestration patterns
 
+**Orchestrations are app source files.** They live in `orchestration/*.orchestration` and `*.suborchestration` and deploy with the rest of the app through `wdcli app deploy`; Orchestration Builder on the Developer Site is an optional visual editor for the same files, not the only way to author them. One rule from the bundled wdcli orchestrations doc binds either way: "Once an orchestration is deployed, subsequent app deploys will not update it", so a changed orchestration needs a new name (and the page endpoint repointed) or an edit in the Builder. Copy node shapes from `orchestrationToolkit` (for example `HTTPwithValidResponseCodesConfig.orchestration` for a Send HTTP Request with a success-code range, `OAuthCCExample.orchestration` for an `ExternalAuthRef` to a named credential). HTTP credentials are named records in the orchestration's `resources.credentials` map whose secret value is filled on the Developer Site, never in the file.
+
 `orchestrationToolkit` is a pattern-per-file library:
 
 - **Error handling**: global handlers (`AsynchGlobalErrorHandlerLogging`,
